@@ -1,10 +1,14 @@
 #include <sparki.h>
 
-#define STATE_FIRST_ONE 0
-#define STATE_SECOND_ONE 1
+#define STATE_FIND_OBJ 0
+#define STATE_DRIVE_TO_OBJ 1
+#define STATE_GRAB_OBJ 2
+#define STATE_FIND_LINE 3
+#define STATE_FOLLOW_LINE 4
+#define STATE_FOUND_START 5
 
 // Set up some global variables with default values to be replaced during operation
-int current_state = STATE_SEARCH_OBJ;
+int current_state = STATE_FIND_OBJ;
 const int threshold = 700; // IR reading threshold to detect whether there's a black line under the sensor
 int cm_distance = 1000;
 int line_left = 1000;
@@ -39,6 +43,29 @@ void loop() {
   sparki.println(current_state);
 
   // Your state machine code goes here
+
+  switch(current_state) {
+    case STATE_FIND_OBJ:
+      // Rotate until object is found
+      break;
+    case STATE_DRIVE_TO_OBJ:
+      // Drive Within 7cm of object
+      break;
+    case STATE_GRAB_OBJ:
+      // Grab object w pinchers
+      break;
+    case STATE_FIND_LINE:
+      // Turn 180 and drive until a line is found
+      break;
+    case STATE_FOLLOW_LINE:
+      // Follow the line until "start"
+      break;
+    case STATE_FOUND_START:
+      // beep and drop object
+      break;
+    default:
+      break;
+  }
 
   sparki.updateLCD();
   delay(100); // Only run controller at 10Hz
