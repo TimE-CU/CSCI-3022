@@ -1,7 +1,7 @@
 #include <sparki.h>
 
 #define M_PI 3.14159
-#define ROBOT_SPEED 0.0275 // meters/second
+#define ROBOT_SPEED 0.0275 // meters/second 
 #define CYCLE_TIME .050 // Default 50ms cycle time
 #define AXLE_DIAMETER 0.0857 // meters
 #define WHEEL_RADIUS 0.03 // meters
@@ -43,7 +43,7 @@ int right_wheel_rotating = NONE;
 // and their respective feedback controller gains
 const float distance_gain = 0.1;
 const float alpha_gain  = 0.1;
-const float beta_gain = 0.0;
+const float beta_gain = 0.001;
 float dX  = 0., dTheta = 0.;
 
 float to_radians(double deg) {
@@ -62,7 +62,7 @@ void setup() {
   right_wheel_rotating = NONE;
 
   // Set test cases here!
-  set_pose_destination(5, 5, to_radians(0));  // Goal_X_Meters, Goal_Y_Meters, Goal_Theta_Degrees
+  set_pose_destination(10, 10, to_radians(-90));  // Goal_X_Meters, Goal_Y_Meters, Goal_Theta_Degrees
   orig_dist_to_goal = sqrt(sq(dest_pose_x - pose_x) + sq(dest_pose_y - pose_y));
 }
 
@@ -87,16 +87,31 @@ void updateOdometry() {
   phi_l = left_speed_pct * (ROBOT_SPEED * CYCLE_TIME);
   phi_r = right_speed_pct * (ROBOT_SPEED * CYCLE_TIME);
 
-  dX = (phi_l + phi_r)/2;
-  dTheta = (phi_l - phi_r)/(AXLE_DIAMETER/2);
+  dX = ((phi_l + phi_r)/2) * 100; // convert to cm
+  dTheta = (phi_r - phi_l)/(AXLE_DIAMETER);
 
   pose_theta += dTheta;
   pose_x += dX*cos(pose_theta);
   pose_y += dX*sin(pose_theta);
-  
-  d_err = sqrt(sq(dest_pose_x - pose_x) + sq(dest_pose_y - pose_y));
-  b_err = atan2((dest_pose_y - pose_y),(dest_pose_x - pose_x));
+
+  d_err = sqrt(sq(dest_pose_x - pose_x) + sq(dest_pose_y - pose_y)) / orig_dist_to_goal;
+  b_err = atan2((dest_pose_y - pose_y),(dest_pose_x - pose_x)) - pose_theta;
   h_err = dest_pose_theta - pose_theta;
+
+  if(abs(d_err) < 0.05)
+  {
+    d_err = 0;
+    b_err = 0;
+  }
+  if(abs(h_err) < 0.1)
+  {
+    h_err = 0;
+  }
+  if(d_err == 0 && b_err == 0 && h_err == 0)
+  {
+    current_state = -1;
+  }
+  
 }
 
 
@@ -173,19 +188,25 @@ void loop() {
         sparki.moveRight(to_degrees(abs(h_err)));
       }
       
-      break;      
+      break;
     case CONTROLLER_GOTO_POSITION_PART3:      
       updateOdometry();
-//      if(d_err < 0.1 && h_err </
 
-      dX = distance_gain*(d_err/orig_dist_to_goal);
+      dX = distance_gain*d_err;
       dTheta  = (alpha_gain*b_err)+(beta_gain*h_err);
 
       left_speed_pct = dX - dTheta;
       right_speed_pct = dX + dTheta;
 
-      left_speed_pct = left_speed_pct / max(abs(left_speed_pct), abs(right_speed_pct));
-      right_speed_pct = right_speed_pct / max(abs(left_speed_pct), abs(right_speed_pct));
+      if(abs(left_speed_pct) > abs(right_speed_pct))
+      {
+         left_speed_pct = left_speed_pct / abs(left_speed_pct);
+         right_speed_pct = right_speed_pct / abs(left_speed_pct);
+      }
+      else{
+         left_speed_pct = left_speed_pct / abs(right_speed_pct);
+         right_speed_pct = right_speed_pct / abs(right_speed_pct);
+      }
 
       if(left_speed_pct > 0) {
         left_dir = DIR_CCW;
@@ -199,8 +220,8 @@ void loop() {
         right_dir = DIR_CCW;
       }
 
-      sparki.motorRotate(0, left_dir, int(left_speed_pct * 100));
-      sparki.motorRotate(1, right_dir, int(right_speed_pct * 100));
+      sparki.motorRotate(0, left_dir, int(abs(left_speed_pct * 100)));
+      sparki.motorRotate(1, right_dir, int(abs(right_speed_pct * 100)));
       
       break;
   }
