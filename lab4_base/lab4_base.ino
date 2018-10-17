@@ -13,8 +13,8 @@
 #define SCREEN_Y_RES 64.
 
 // Map size
-#define NUM_X_CELLS 4
-#define NUM_Y_CELLS 4
+#define NUM_X_CELLS 12
+#define NUM_Y_CELLS 6
 
 // Start line is 18", 2" from bottom left corner
 #define START_LINE_X .4572 
@@ -35,7 +35,7 @@ int left_wheel_rotating = 0, right_wheel_rotating = 0;
 
 // TODO: Define world_map multi-dimensional array
 
-
+int disp_arr[NUM_X_CELLS][NUM_Y_CELLS];
 
 // TODO: Figure out how many meters of space are in each grid cell
 const float CELL_RESOLUTION_X = 0.60 / NUM_X_CELLS;  // Line following map is ~60cm x ~42cm
@@ -58,6 +58,11 @@ void setup() {
   displayMap();
   delay(1000);  
   last_cycle_time = millis();
+  for(int i = 0; i<NUM_X_CELLS; i++){
+    for(int j = 0; j<NUM_Y_CELLS; j++){
+      disp_arr[i][j] = 0;
+    }
+  }
 }
 
 float to_radians(float deg) {
@@ -84,8 +89,8 @@ void transform_robot_to_world_coords(float x, float y, float *gx, float *gy) {
 
 bool transform_xy_to_grid_coords(float x, float y, int *i, int *j) {
   // TODO: Set *i and *j to their corresponding grid coords  
-  *i = float(x * NUM_X_CELLS);
-  *j = float(y * NUM_Y_CELLS);
+  *i = float(x / .6 * (NUM_X_CELLS-1));
+  *j = float(y / .42 * (NUM_Y_CELLS-1));
 
   // TODO: Return 0 if the X,Y coordinates were out of bounds
   if(*i >= NUM_X_CELLS || *j >= NUM_Y_CELLS || *i < 0 || *j < 0)
@@ -104,15 +109,15 @@ bool transform_grid_coords_to_xy(int i, int j, float *x, float *y) {
   }
 
   // TODO: Set *x and *y
-  *x = float(i) / float(NUM_X_CELLS);
-  *y = float(j) / float(NUM_Y_CELLS);
+  *x = float(i) *.6 / float(NUM_X_CELLS-1);
+  *y = float(j) *.42 / float(NUM_Y_CELLS-1);
   return 1;
 }
 
 bool transform_world_to_screen(float x, float y, float *sx, float *sy)
 {
   *sx = (x / 0.60) * SCREEN_X_RES;
-  *sy = (x / 0.42) * SCREEN_Y_RES;
+  *sy = (y / 0.42) * SCREEN_Y_RES;
   if(*sx < 0 || *sx >= SCREEN_X_RES || *sy < 0 || *sy >= SCREEN_Y_RES)
   {
     return 0;
@@ -173,10 +178,22 @@ void displayMap() {
   float sx, sy;
   if(transform_world_to_screen(pose_x, pose_y, &sx, &sy))
   {
-    sparki.print(sx);
-//    sparki.drawCircleFilled(sx, sy, 5);/
+//    sparki.print(sx);
+    sparki.drawCircleFilled(sx, sy, 2);
   }
   // TODO: Draw Map
+  for(int i = 0; i<NUM_X_CELLS; i++){
+    for(int j = 0; j<NUM_Y_CELLS; j++){
+      transform_grid_coords_to_xy(i, j, &sx, &sy);
+      transform_world_to_screen(sx, sy, &sx, &sy);
+      if(disp_arr[i][j] == 1){
+        sparki.drawCircleFilled(sx, sy, 5);
+      }
+      else{
+        sparki.drawCircle(sx, sy, 5);
+      }
+    }
+  }
 }
 
 void serialPrintOdometry() {
@@ -221,7 +238,18 @@ void loop() {
 
   // TODO: Check if sensors found an object
 
+  float cm_distance = sparki.ping(); 
+  float sx, sy;
+  int px, py;
+  
   // TODO: Adjust Map to accommodate new object
+
+  if(cm_distance <= 30 && cm_distance != -1) {
+    transform_us_to_robot_coords(cm_distance/100, pose_theta+to_radians(SERVO_POS_DEG), &sx, &sy);
+    transform_robot_to_world_coords(sx, sy, &sx, &sy);
+    transform_xy_to_grid_coords(sx, sy, &px, &py);
+    disp_arr[px][py] = 1;
+  }
 
 //  displayOdometry();
   displayMap();
