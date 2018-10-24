@@ -217,6 +217,37 @@ void displayOdometry() {
   sparki.println(pose_theta * 180. / 3.14159);
 }
 
+int get_cell_index(int x, int y)
+{
+  return (x * NUM_X_CELLS) + y;
+}
+
+void get_index_pos(int idx, int* x, int* y)
+{
+  *x = idx / NUM_X_CELLS;
+  *y = idx % NUM_X_CELLS;
+}
+
+// Cost to move from idx1 to idx2
+int get_cost(int idx1, int idx2)
+{
+  int x1, y1, x2, y2;
+  get_index_pos(idx1, &x1, &y1);
+  get_index_pos(idx2, &x2, &y2);
+  if(disp_arr[x2][y2])
+  {
+    return 999;
+  }
+  
+  int dist = abs(x1-x2) + abs(y1+y2);
+  if(dist != 1)
+  {
+    return 999;
+  }
+
+  return 1;
+}
+
 void loop() {
   unsigned long begin_time = millis();
   unsigned long begin_movement_time = 0;
